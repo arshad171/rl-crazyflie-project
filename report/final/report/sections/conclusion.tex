@@ -1,0 +1,11 @@
+\documentclass[../final.tex]{subfiles}
+
+\begin{document}
+
+The project focused on reinforcement learning-based control of a CrazyFlie, exploring aspects of combining classical control and reinforcement learning approaches. Our first objective was to determine how suitable was this virtual environment, choosing as a primary task, the PID tuning of the controller coefficients. In order to do so, the agent needed to complete a predefined trajectory in simulation and reality. This formed the basis for the navigation task, where the RL agent was responsible for predicting high-level actions for maneuvers, and the PID controller was leveraged to execute the actions successfully. 
+	
+	The navigation task also explores 3 distinct approaches, i. A pure RL approach, where RL agent directly outputs the low-level control signal (without the PID controller). ii. RL and open-loop approach, where the agent predicts the actions and the low-level PID control computes the control signal and executes them in an open-loop fashion. iii. Finally, the RL and closed-loop approach was improved to run a closed-loop PID to ensure the high-level actions were perfectly executed before moving on to the next RL step. We observe that approach (iii) performed remarkably, achieving the best results. Approach (iii) aims to borrow the best from both fields, robust and explainable principles (PID) from classical control, and the ability to adapt and perform complex tasks from reinforcement learning.
+	
+	Finally, as part of robustness evaluation, we turn towards assessing the inherent robustness of RL models and explore if subjecting the agent to external disturbances would improve the performance. The main objective was to establish a comparison of how an agent trained against disturbances could improve the model performance. In our case, the model subject to disturbance showed poor performance. We conclude that for our experiment the RL agents have inherent robustness and training with disturbances does not improve the performance, but it does help the agent explore the environment.
+	
+\end{document}

@@ -1,0 +1,81 @@
+\graphicspath{ {./resources/nav/} }
+\documentclass[../templateLTHtwocol.tex]{subfiles}
+\begin{document}
+
+The aim of the navigation task is to train a reinforcement-learning policy that learns to navigate the CrazyFlie 2.X quadrotor given the destination coordinates in the specified environment. In contrast to the previous task, where we fed in a sequence/trajectory, here the RL policy is expected to learn to generate the trajectory (actions) on its own. The idea is to formulate a navigation environment and train the model in the simulation bed and then export the model for evaluation on real hardware.
+
+To start things off, we focus on a relatively simple task of hovering the CF2.X quadrotor to get a sense of convergence. Although hovering is something that can be accomplished by classical PID (as done in the previous task), the idea here is to gradually introduce complexities in the environment where a simple PID control would fall short, for instance, introducing a wall and having to maneuver around it or have a dynamic or stochastic environment where the classical path planning algorithms like Dijkstra or A* algorithm can have a hard time accommodating the dynamics. It is also worth noting that the phase space for a system like CF2.X has 12 states, which can further exacerbate the task when employing such algorithms. 
+
+\subsection{Environment}
+
+The objective is simple, the goal is for for the reinforcement-learning agent (CF2.X) is to move to the specified destination specified by a set of coordinates $[x_t, y_t, z_t]$ starting from an initial state $S_0$. The state space/observation space consists of the coordinates, orientation, and linear and angular velocities of the quadrotor. So the state vector comprises of 12 state variables, $S = [x, y, z, r, p, y, v_x, v_y, v_z, w_x, w_y, w_z]$. Given a state $S$, the possible actions constitute moving within a 3D cube $|\Delta x| \le 1, |\Delta y| \le 1, |\Delta z| \le 1$ (a continuous action space). There are several ways of executing the action: i. A pure RL approach, where the policy function outputs the low-level control signals - the 4 motor RPMs. ii. Using an open loop control, where a controller is used to compute the control signals (motor RPMs) to move to execute the action, and the control signals are applied for a fixed number of iterations. iii. Executing a closed loop control, here the RL policy is responsible for predicting the optimal high-level actions $(\Delta x, \Delta y, \Delta z)$ and the actions are successfully executed by the trusted PID controller, relieving the RL policy from having to learn granular controls. Approaches i and ii are supported by \verb|gym-pybullet| out of the box, while approach iii proposed as part of the project is a custom implementation, and was found to outperform in terms of convergence and expected reward.
+
+The RL agent was trained using the Twin-Deep Deterministic Policy Gradient (TD3) implementation from \verb|stable_baselines3|. The actor is responsible of prediction an optimal action ($a$) given a state ($S$), $\pi : S \to a$ and the critic is responsible for predicting the reward ($r$) given a state and an action, $Q : (S, a) \to r$. Table \ref{nav_rl:table} summarizes the variables involved. The reward function is defined as the negative squared error of the current state and the target state (equation \ref{nav_r:eq}). Thus, the objective is to maximize the negative reward (ideally close to 0). Both the actor and critic are deep neural networks, the actor net has a \verb|tanh| output action and the critic has a linear output activation.
+
+\begin{table}[h]
+\caption{Navigation Task Variables}
+	\label{nav_rl:table}
+	\centering
+	\begin{adjustbox}{max width=0.45\textwidth}
+	\begin{tabular}{|c|c|}
+		\hline
+		\textbf{Variable} & \textbf{Notation}\\
+		\hline \hline
+		State Space & $S = [x, y, z, r, p, y, v_x, v_y, v_z, w_x, w_y, w_z]$ \\
+		Action Space & $a = [\Delta x, \Delta y, \Delta z] $\\
+		Min Action & $a_{min} = [-1, -1, -1] $ \\
+		Max Action & $a_{max} = [+1, +1, +1] $ \\
+		\hline
+	\end{tabular}
+	\end{adjustbox}
+\end{table}
+
+
+\begin{equation}
+	\label{nav_r:eq}
+	r(S, a) = - [(x + \Delta x - x_t)^2 + (y + \Delta y - y_t)^2 + (z + \Delta z - z_t)^2]
+\end{equation}
+
+Given a state ($S = [x, y, z]$) and an action ($a = [\Delta x, \Delta y, \Delta z]$), executing the action involves successfully moving to the relative coordinates, i.e. the next state is $S' = (x + \Delta x, y + \Delta y, z + \Delta z)$. To avoid the agent taking long stride while executing the actions, we scale the output of the actor according to equation \ref{nav_a_s:eq}, The scaling factor of 0.05 implies that the agent is restricted to a distance of 0.05 m (relatively) along individual axes. The TD3 algorithm also defines an action noise for exploration and better convergence. We define the action noise as a multivariate Gaussian (equation \ref{nav_a_n:eq}), so the effective action is then $a = 0.05 (a + a_n)$.
+
+\begin{equation}
+	\label{nav_a_s:eq}
+	a = 0.05 * [\Delta x, \Delta y, \Delta z]
+\end{equation}
+
+\begin{equation}
+	\label{nav_a_n:eq}
+	a_n \sim \frac{\exp(-\frac{1}{2} (a - \mu)^T \Sigma (a - \mu))}{\sqrt{(2 \pi)^3 |\Sigma|}}
+\end{equation}
+
+Table \ref{nav_rl_hp:table} lists the hyperparameters for training. The control frequency implies the number of control actions during a period of 2 simulation secs to execute the corresponding action.
+
+\begin{table}[h]
+\caption{Hyperparameters}
+	\label{nav_rl_hp:table}
+	\centering
+	\begin{tabular}{|c|c|}
+		\hline
+		\textbf{Hyperparameter} & \textbf{Value} \\
+		\hline \hline
+		Actor Net Arch & $[50, 100, 500, 100, 50, 3]$ \\
+		Critic Net Arch & $[50, 100, 500, 100, 50, 1]$ \\
+		\hline
+		Number of Timesteps & $100\,000$ \\
+		Learning Rate & $0.001$ \\
+		\hline
+		Action Noise Mean ($\mu$) & $[0, 0, 0]$ \\
+		Action Noise Variance ($\Sigma$) & $ \begin{bmatrix}
+								   0.5 & 0 & 0 \\ 
+								   0 & 0.5 & 0 \\ 
+								   0 & 0 & 0.5
+								 \end{bmatrix} $ \\
+		\hline
+		Control Frequency & 50 Hz \\
+		\hline
+		Initial State (of the drone) & $S_0 = [0, 0, 0]$ \\
+		\hline
+	\end{tabular}
+\end{table}
+
+\end{document}

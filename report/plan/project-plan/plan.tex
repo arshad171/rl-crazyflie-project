@@ -1,0 +1,181 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage[a4paper,body={140mm,250mm}]{geometry}
+
+\usepackage{graphicx} 
+\usepackage{array} 
+\usepackage{newtxtext,newtxmath}
+\usepackage[varl]{inconsolata}
+
+\usepackage{pgfgantt}
+
+\begin{document}
+\begin{titlepage}
+  \begin{flushleft}\scshape
+    Lund University\\
+    Automatic Control\\[\smallskipamount]
+    FRTN70 Project in Systems, Control and Learning\\
+    Spring 2023
+  \end{flushleft}
+  \vspace*{0pt plus 0.3fill}
+  \begin{center}
+    \huge \textbf{Reinforcement Learning-Based Control of CrazyFlie 2.X Quadrotor}\\[4mm]     
+    \large\textbf{Project Plan Group 3}\\[5mm]
+         Arshad Javeed\footnote{\texttt{ar1886ja-s@student.lu.se}}\quad
+         Valentín López Jiménez\footnote{\texttt{va7764lo-s@student.lu.se}}\quad
+  \end{center}
+\begin{center}
+    Project Advisor: Johan Grönqvist
+\end{center}
+\vfill
+\end{titlepage}        
+
+\section{Project Purpose}
+The objective of the project is to explore synergies between classical control algorithms such as PID and contemporary reinforcement learning algorithms to come up with a pragmatic control mechanism to control the CrazyFlie 2.X quadrotor. The primary objective would be performing PID tuning using reinforcement learning strategies (A2C, DDPG, TD3). The secondary objective is to leverage the learnings from the first task to implement control for navigation by integrating with the lighthouse positioning system. Two approaches are considered for navigation, a discrete navigation problem using Deep Q-Learning with finite predefined motion primitives, and deep reinforcement learning for a continuous navigation approach. Simulations for RL training will be performed on \verb|gym-pybullet-drones|\cite{pybullet_gym}, an open-source gym-based environment for reinforcement learning and the RL implementations are provided by \verb|stable-baselines3|\cite{stable-baselines3}. 
+
+\section{Equipments and material} \label{sec:equipment}
+
+Following is the list of hardware and equipment required for the project:
+
+\begin{itemize}
+	\item CrazyFlie 2.0X/P x 1
+	\item Crazyradio PA x 1
+	\item Flow deck V2 x1
+	\item Lighthouse basestation V2.0 x 2
+	\item Lighthouse positioning deck x 1
+	\item AI deck\footnote{For running neural network computations onboard, not mandatory} x 1
+\end{itemize}
+
+%\newpage
+
+\section{Modelling and System Design}
+
+As mentioned, the simulation environment for RL is \verb|gym-pybullet| which is a physics-based simulation environment that supports CrazyFlie 2.0 X/P out-of-the-box or any other drone, given the Unified Robotics Description Format (URDF) file. The simulation environment involves defining the physical properties of objects (including CF) and the application of external forces to objects leading to interaction. For the PID control, the environment provides an implementation of the Mellinger controller\cite{mellinger}. This requires the CF to be configured and operated in the high-level commander mode and the corresponding controller type.
+
+For each of the proposed tasks, the objective is to first run the training in the simulation bed, and on achieving satisfactory performance, the testing would take place on real hardware. This allows us to train/test different strategies in the simulation environment with varying conditions and select the model that performs the best.
+
+\section{Division of labour} \label{sec:division}
+
+The project is divided into 2 major tasks with minimal inter-dependencies. Task \ref{subsec:pid_tuning} is fundamental and will be taken up first, and subtasks for \ref{subsec:nav} will be worked upon in parallel.
+
+\subsection{PID Tuning} \label{subsec:pid_tuning}
+
+The task of PID tuning serves as a building block for the subsequent task. The objective here is to use RL strategies like DDPG or TD3 to tune the PID coefficients (position and attitude) by formulating the RL task of trajectory following, the trajectory can be a circle or helix. \verb|pybullet-gym-drones| provides an environment specifically for PID tuning, so the focus is only on tweaking and comparing different RL strategies to obtain optimal coefficients. The coefficients can be tested by writing them to the CrazyFlie firmware and executing the desired trajectories.  
+
+As this is a preliminary and vital task, both Arshad Javeed and Valentín López Jiménez would be responsible for the task to get hands-on.
+
+\subsection{Navigation} \label{subsec:nav}
+
+In order to have a pragmatic solution, the navigation task leverages PID control (with the learned PID coefficients - \ref{subsec:pid_tuning}) to execute the actions with certainty suggested by the policy function, which significantly simplifies the problem, rather than a pure RL task learning to navigate. The task involves formulating the RL problem by defining an environment consisting of a reward function, observation space, and action space. The first step would be to start off with a finite set of motion primitives as actions: forward, backward, up, down, left, and right and try out a simpler RL strategy such as DQN. This would give us a sense of convergence and feasibility. Subsequently, the action space can be converted into a continuous space where the policy function would be responsible for predicting relative coordinates within a 3D 1x1x1 box that would lead to the goal.
+
+Implementing the RL strategies on the real hardware requires integrating the lighthouse positioning system to determine the real-world XYZ coordinates which would be part of the state vector. Having an AI deck would enable us to run onboard neural network computations. The AI deck supports running TensorflowLite models. One possibility is to simply export the actor-network trained on the computer to TFlite format. One challenge here is that the much of \verb|stable_baselines3| implementation is based on \verb|PyTorch|, so something like \verb|PyTorch-ONNX| (Open Neural Network Exchange) can be leveraged to export the model to ONNX format and then to TFlite format using TensorFlow.
+The other option is to send commands to CrazyFlie over the radio.
+
+Depending on the time availability the navigation task could be enhanced by adding obstacle avoidance.
+
+The tasks would be shared between Arshad Javeed and Valentín López Jiménez.
+
+\section{Plan}
+
+The subtasks marked with "**", "***" will be taken up on time availability.
+
+\subsection{Tasks and Subtasks}
+\begin{enumerate}
+	\item PID Tuning (\ref{subsec:pid_tuning})
+	\begin{enumerate}
+		\item Explore the \verb|TuneAviary| environment provided by \verb|gym-pybullet| and define a suitable target trajectory for training. Train an RL strategy (Twin-Deep Deterministic Policy Gradient or Asynchronous Actor-Critic).
+		\item Figure out the compatibility of the PID coefficients. Write the coefficients to the firmware and compose a python script to execute trajectories.
+	\end{enumerate}
+	\item Navigation: Deep Learning Approach (\ref{subsec:nav})
+	\begin{enumerate}
+		\item Create an environment for navigation tasks by defining the actions, reward function, and means of executing the actions using PID. The rewards can be based on a heuristic cost function.
+		\item Discrete problem: Identify a finite set of motion primitives and define a deep Q network to output the corresponding actions. Train the DQN.
+		\item Continuous problem: The output of the actor now is $(\Delta x, \Delta y, \Delta z)$. Train the actor and critic together.
+		\item Integrate lighthouse positioning system with CrazyFlie.
+		\item Explore the possibility of running neural networks (actor and critic networks) onboard using the AI deck. ***
+		\item If the AI deck is not available, write a python script that continuously reads the state, computes the action, and commands the CrazyFlie to take appropriate actions.
+		\item Testing robustness, ability to adapt to external disturbances. Explore the possibility of adding obstacles and collision avoidance. **
+	\end{enumerate}
+\end{enumerate}
+ 
+ \subsection{Acceptance Criteria}
+ 
+ \begin{itemize}
+ 	\item Task \ref{subsec:pid_tuning} PID Tuning
+ 	\begin{enumerate}
+ 		\item Successful training of RL strategy (DDPG or TD3) to optimize the PID coeffs.
+ 		\item Execute a set of trajectories using the trained PID parameters and compare them to the default CrazfyFlie's behavior for relative motions.
+ 	\end{enumerate} 
+ \end{itemize}
+ 
+  \begin{itemize}
+ 	\item Task \ref{subsec:nav} Navigation
+ 	\begin{enumerate}
+ 		\item For the discrete problem, the focus will be on analyzing the convergence of DQN in simulation mode.
+ 		\item For the continuous problem, the focus will be on successful training and simulation, and then translating the problem to the real world and executing it.
+ 	\end{enumerate} 
+ \end{itemize}
+
+\subsection{Risk Assessment \& Contingency Plan}
+ 
+\begin{enumerate}
+	\item If DDPG does not result in satisfactory convergence for task \ref{subsec:pid_tuning}, other reinforcement learning models will be tested. 
+	\item If no convergence is found for continuous RL models for task \ref{subsec:nav}, we fall back to full discrete navigation implementation (simulation + hardware).
+\end{enumerate}
+
+\subsection{Important dates}
+    \begin{itemize}
+        \item 03/27 - Hand in project plan
+        \item 04/04 - Self-evaluation 1
+        \item 05/03 - Preliminary report
+        \item 05/08 - Preliminary report - peer review
+        \item 05/24 - Final report
+        \item 05/30 - Self-evaluation 2
+        \item 05/24 - Final report - peer review
+        \item 06/07 - Revised final report
+    \end{itemize}
+
+\subsection{Gantt Chart}
+
+The subtasks marked with "**", "***" will be taken up on time availability.
+
+\begin{ganttchart}[vgrid={draw=none, dotted}, bar/.append style={fill=black},expand chart=\textwidth]{1}{11}
+    \gantttitle{Week}{11} \\
+    \gantttitlelist{1,...,11}{1} \\
+    \ganttbar{4.1.a: PID Tuning (Sim)}{1}{2} \\
+    \ganttbar{4.1.b: Demo 1: PID}{3}{3} \\
+    \ganttbar{4.2.d: Lighthouse Positioning}{3}{4} \\
+    \ganttbar{4.2.a: Env for Nav (Sim)}{4}{4} \\
+    \ganttbar{4.2.b: Discrete Problem (Sim)}{5}{6} \\
+    \ganttbar{4.2.c: Continuous Problem (Sim)}{5}{6} \\
+    \ganttbar{4.2.e: *** Explore AI deck}{10}{11} \\
+    \ganttbar{4.2.f: Demo 2: Comm over Radio}{7}{8} \\
+    \ganttbar{4.2.g: ** Robustness/Obstacle Avoidance}{8}{9} \\
+\end{ganttchart}
+
+\section{Project demonstrations (Demos)}
+The project will be divided in two demos, respectively to each task.
+\begin{itemize}
+    \item Demo 1, task \ref{subsec:pid_tuning} PID Tuning: Test the coefficients for the trajectory following (trained and untrained trajectories) and compare the performance with the default PID parameters. 
+    \begin{enumerate}
+        \item Trajectories are trained in \verb|gym-pybullet-drones|\cite{pybullet_gym}, where specific PID parameters are obtained for each.
+        \item The performance of the quadcopter is measured against the specific trajectory accomplishment. Trained, untrained (general tuned PID values) and factory values are tested on the same task.
+        \item The difficulty of the trajectory will rely on the project plan time execution. Examples include reaching a destination or performing a movement such as a helix. 
+    \end{enumerate}
+
+    \item Demo 2, task \ref{subsec:nav} Navigation: Reach a destination given a starting point. Robustness and obstacle avoidance will be secondary. 
+    \begin{enumerate}
+        \item The quadcopter must navigate from start to finish points using absolute positioning (lighthouse)
+        \item Path constraints can be added to increase the task difficulty (obstacles and disturbances).
+    \end{enumerate}
+    \item \textbf{Special constraints (added to demos upon time availability)}:
+    \begin{enumerate}
+        \item Robustness: A disturbance is added to the task, e.g. a wind current using a fan.
+        \item Obstacles: Path constrains are mapped in the simulation environment and then physically recreated, e.g. the drone has to pass under a chair to reach a destination or a shortest path problem is defined using a maze.     
+    \end{enumerate}
+    
+\end{itemize}
+\bibliographystyle{plain}
+\bibliography{./bibliography.bib}
+\end{document}

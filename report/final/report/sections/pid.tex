@@ -1,0 +1,32 @@
+\graphicspath{ {./resources/pid/} }
+\documentclass[../final.tex]{subfiles}
+\begin{document}
+
+The objective of the task is to determine the PID parameters for the reinforcement learning agent, based on Mellinger's PID architecture which consists of 18 parameters divided into position and attitude controllers (table \ref{pid_tab1:table}. This architecture is already implemented on CrazyFlie's firmware, where the user writes the parameters internally to its memory. 
+
+The following subsections will describe the process of obtaining and validating the parameters from agent-train to hardware test.
+
+\subsection{Agent training}
+Agent's PID parameters are trained over a determined number of episodes, starting from random parameters to an optimal solution. The task's main objective is to complete successfully a trajectory, for training a circle and testing a  helix. 
+
+Using TD3 as a reinforcement learning algorithm, convergence has been achieved in  1000 time steps with a small network architecture for the Actor [50,50] and Critic [50,50]. The observation space is defined by position $XYZ$ and orientation $RPY$. The reward function is computed as $(s'-t)^2$ where $t$ is the next position in the target trajectory and $s'$ is the current state. See table \ref{pid_rl_hp:table} for detailed information.
+
+\begin{table}[h]
+\caption{Hyperparameters for PID Tuning}
+	\label{pid_rl_hp:table}
+	\centering
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Hyperparameter}                                                     & \textbf{Value}                                                    \\ \hline \hline
+\begin{tabular}[c]{@{}l@{}}Actor Net Arch\\ Critic Net Arch\end{tabular}    & \begin{tabular}[c]{@{}l@{}}{[}50,50{]}\\ {[}50,50{]}\end{tabular} \\ \hline
+\begin{tabular}[c]{@{}l@{}}Number of Timesteps\\ Learning Rate\end{tabular} & \begin{tabular}[c]{@{}l@{}}1000\\ 0.001\end{tabular}              \\ \hline
+Reward Function                                                             & $-(s'-t)^2$                                        \\ \hline
+\begin{tabular}[c]{@{}l@{}}Helix Height\\ Helix Radius\end{tabular}         & \begin{tabular}[c]{@{}l@{}}0.5 m\\ 0.3 m\end{tabular}             \\ \hline
+\end{tabular}
+\end{table}
+
+\subsection{Hardware implementation}
+The same helix trajectory implemented in simulation is used in hardware applying a constant velocity. Crazyflie's flying reference system is achieved using one of two methods, a relative (Flow Deck) and an Absolute (Lighthouse). The absolute position system brings accuracy and stability but depends on external modules in a fixed environment, meanwhile the relative offers mobility without any extra tracking devices, but adds drift and instability to the actions.
+
+
+\end{document}
